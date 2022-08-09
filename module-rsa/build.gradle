@@ -1,0 +1,85 @@
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    compileSdk 32
+
+    defaultConfig {
+        version 1
+        versionName "1.0"
+        minSdk 21
+        targetSdk 32
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+        externalNativeBuild {
+            cmake {
+                abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'
+                cppFlags ''
+            }
+        }
+    }
+    packageAAR(project,android,"rsa")
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    externalNativeBuild {
+        cmake {
+            path file('src/main/cpp/CMakeLists.txt')
+            version '3.18.1'
+        }
+    }
+    sourceSets{
+        main{
+            jniLibs.srcDirs=["./libs/jni"]
+        }
+    }
+}
+
+void packageAAR(project,android,name){
+    android.libraryVariants.all{ variant->
+        //自定义aar名称
+        variant.outputs.all{
+            def currentTime = new Date().format("yyyyMMddHHmmss",TimeZone.getDefault())
+            def aarName = "${name}_${currentTime}_v${android.defaultConfig.versionName}"
+            if (variant.buildType.name == 'debug') {
+                aarName +=  "_debug"
+            }
+            outputFileName = aarName + ".aar"
+        }
+
+        //复制AAR到指定目录
+        def assembleTask
+        if(variant.hasProperty("assembleProvider")){
+            assembleTask = variant.assembleProvider.get()
+        }else {
+            assembleTask = variant.assemble
+        }
+
+        assembleTask.doLast { assemble ->
+            def outputPath = [".","outputs"].join(File.separator)
+            copy {
+                from variant.outputs*.outputFile
+                into outputPath
+            }
+        }
+    }
+}
+
+dependencies {
+
+    implementation 'androidx.appcompat:appcompat:1.3.0'
+    implementation 'com.google.android.material:material:1.4.0'
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.3'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
+}
